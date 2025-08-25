@@ -18,119 +18,76 @@ go get github.com/Nux-xader/chx-go
 
 ## Usage
 
-### Importing the Library
-
-To use the library, import the `chx-go` package in your Go code:
+The following example demonstrates how to start a `chx` server (assuming the binary is available), connect to it using `chx-go`, and perform basic `Set`, `Get`, and `Delete` operations.
 
 ```go
-import "github.com/Nux-xader/chx-go"
-```
+package main
 
-### Creating a New Client
+import (
+	"fmt"
+	"log"
+	"os/exec"
+	"time"
 
-To create a new client, use the `NewClient` function. If no address is provided, it will connect to the default address (`127.0.0.1:3800`).
+	"github.com/Nux-xader/chx-go"
+)
 
-```go
-client, err := chx.NewClient("127.0.0.1:3800")
-if err != nil {
-    log.Fatalf("Failed to connect to chx server: %v", err)
-}
-defer client.Close()
-```
+func main() {
+	// Path to the chx server binary
+	// IMPORTANT: Replace this with the actual path to your chx server executable.
+	// You can download it from https://github.com/Nux-xader/chx/releases
+	chxPath := "/media/nux/Dataxx/project/personal/chx/target/release/chx"
 
-### Setting a Value
+	// Start the chx server as a background process
+	cmd := exec.Command(chxPath)
+	err := cmd.Start()
+	if err != nil {
+		log.Fatalf("Failed to start chx server: %v", err)
+	}
+	defer func() {
+		if err := cmd.Process.Kill(); err != nil {
+			log.Printf("Failed to kill server process: %v", err)
+		}
+	}()
 
-To set a key-value pair, use the `Set` method.
+	// Give the server a moment to start
+	time.Sleep(1 * time.Second)
 
-```go
-err := client.Set("mykey", "myvalue")
-if err != nil {
-    log.Printf("Failed to set key: %v", err)
-}
-```
+	// Connect to the server
+	client, err := chx.NewClient(chx.DefaultAddr)
+	if err != nil {
+		log.Fatalf("Failed to connect to chx server: %v", err)
+	}
+	defer client.Close()
 
-### Getting a Value
+	// Perform Set operation
+	err = client.Set("hello", "world")
+	if err != nil {
+		log.Fatalf("Set operation failed: %v", err)
+	}
+	fmt.Println("Set 'hello' to 'world'")
 
-To retrieve the value for a key, use the `Get` method.
+	// Perform Get operation
+	value, err := client.Get("hello")
+	if err != nil {
+		log.Fatalf("Get operation failed: %v", err)
+	}
+	fmt.Printf("Get 'hello': %s\n", value)
 
-```go
-value, err := client.Get("mykey")
-if err != nil {
-    if errors.Is(err, chx.ErrNotFound) {
-        fmt.Println("Key not found")
-    } else {
-        log.Printf("Failed to get key: %v", err)
-    }
-} else {
-    fmt.Println("Found value:", value)
-}
-```
+	// Perform Delete operation
+	err = client.Delete("hello")
+	if err != nil {
+		log.Fatalf("Delete operation failed: %v", err)
+	}
+	fmt.Println("Deleted 'hello'")
 
-### Deleting a Value
-
-To delete a key, use the `Delete` method.
-
-```go
-err := client.Delete("mykey")
-if err != nil {
-    log.Printf("Failed to delete key: %v", err)
-}
-```
-
-### Error Handling
-
-The library provides custom error types for more granular error handling.
-
-*   `ErrNotFound`: Returned when a key is not found.
-*   `ErrServer`: Returned for errors that occur on the `chx` server.
-
-```go
-value, err := client.Get("nonexistentkey")
-if err != nil {
-    var serverErr *chx.ErrServer
-    if errors.As(err, &serverErr) {
-        fmt.Println("Server error:", serverErr)
-    } else if errors.Is(err, chx.ErrNotFound) {
-        fmt.Println("Key not found")
-    } else {
-        fmt.Println("An unexpected error occurred:", err)
-    }
+	// Verify deletion
+	_, err = client.Get("hello")
+	if err != nil {
+		fmt.Printf("Get 'hello' after deletion: %v\n", err)
+	}
 }
 ```
-
-### Closing the Connection
-
-To close the connection to the `chx` server, use the `Close` method. It is recommended to use `defer` to ensure the connection is closed.
-
-```go
-defer client.Close()
-```
-
-## API Reference
-
-### `type Client`
-
-The `Client` struct is the primary entry point for interacting with the `chx` server.
-
-### `func NewClient(address string) (*Client, error)`
-
-`NewClient` creates a new `chx` client and connects to the server at the specified address. If the address is an empty string, it defaults to `"127.0.0.1:3800"`.
-
-### `func (c *Client) Get(key string) (string, error)`
-
-`Get` retrieves the value for a given key. It returns `ErrNotFound` if the key does not exist.
-
-### `func (c *Client) Set(key, value string) error`
-
-`Set` stores a key-value pair.
-
-### `func (c *Client) Delete(key string) error`
-
-`Delete` removes a key from the store.
-
-### `func (c *Client) Close() error`
-
-`Close` closes the connection to the `chx` server.
 
 ## Contributing
 
