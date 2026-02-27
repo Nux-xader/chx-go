@@ -1,7 +1,6 @@
 package chx
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"net"
@@ -15,10 +14,9 @@ const DefaultAddr = "127.0.0.1:3800"
 // Client is a client for the chx server.
 // It is safe for concurrent use by multiple goroutines.
 type Client struct {
-	conn   net.Conn
-	reader *bufio.Reader
-	mu     sync.Mutex
-	addr   string
+	conn net.Conn
+	mu   sync.Mutex
+	addr string
 }
 
 // NewClient creates a new chx client.
@@ -33,9 +31,8 @@ func NewClient(address string) (*Client, error) {
 		return nil, err
 	}
 	return &Client{
-		conn:   conn,
-		reader: bufio.NewReader(conn),
-		addr:   address,
+		conn: conn,
+		addr: address,
 	}, nil
 }
 
@@ -104,7 +101,6 @@ func (c *Client) reconnect() error {
 		return err
 	}
 	c.conn = conn
-	c.reader = bufio.NewReader(conn)
 	return nil
 }
 
@@ -141,9 +137,11 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) readResponse() (string, error) {
-	line, err := c.reader.ReadString('\n')
+	// Gunakan buffer besar (64KB) seperti implementasi Rust
+	buffer := make([]byte, 65536)
+	n, err := c.conn.Read(buffer)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(line), nil
+	return strings.TrimSpace(string(buffer[:n])), nil
 }
